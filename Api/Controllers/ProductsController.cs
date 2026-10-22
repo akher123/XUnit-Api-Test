@@ -1,4 +1,5 @@
 using Api.DTOs;
+using Api.Extensions;
 using Api.Models;
 using Api.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -12,20 +13,15 @@ public class ProductsController(IProductService productService) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<Product>>> GetAll(CancellationToken cancellationToken)
     {
-        var products = await productService.GetAllAsync(cancellationToken);
-        return Ok(products);
+        var result = await productService.GetAllAsync(cancellationToken);
+        return result.ToActionResult(this);
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Product>> GetById(int id, CancellationToken cancellationToken)
     {
-        var product = await productService.GetByIdAsync(id, cancellationToken);
-        if (product is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(product);
+        var result = await productService.GetByIdAsync(id, cancellationToken);
+        return result.ToActionResult(this);
     }
 
     [HttpPost]
@@ -38,8 +34,13 @@ public class ProductsController(IProductService productService) : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var created = await productService.CreateAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        var result = await productService.CreateAsync(request, cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.ToActionResult(this);
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
     }
 
     [HttpPut("{id:int}")]
@@ -53,24 +54,14 @@ public class ProductsController(IProductService productService) : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var updated = await productService.UpdateAsync(id, request, cancellationToken);
-        if (!updated)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
+        var result = await productService.UpdateAsync(id, request, cancellationToken);
+        return result.ToActionResult(this);
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var deleted = await productService.DeleteAsync(id, cancellationToken);
-        if (!deleted)
-        {
-            return NotFound();
-        }
-
-        return NoContent();
+        var result = await productService.DeleteAsync(id, cancellationToken);
+        return result.ToActionResult(this);
     }
 }

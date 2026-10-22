@@ -1,7 +1,10 @@
+using Api;
 using Api.Controllers;
 using Api.DTOs;
 using Api.Models;
+using Api.Products;
 using Api.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -66,13 +69,15 @@ public class ProductsControllerTests
         // Arrange
         _productServiceMock
             .Setup(s => s.GetByIdAsync(99, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Product?)null);
+            .ReturnsAsync(Result.Failure<Product>(ProductErrors.NotFound(99)));
 
         // Act
         var result = await _controller.GetById(99, CancellationToken.None);
 
         // Assert
-        Assert.IsType<NotFoundResult>(result.Result);
+        var notFound = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status404NotFound, notFound.StatusCode);
+        AssertErrorBody(notFound.Value, "Product.NotFound");
     }
 
     [Fact]
@@ -122,7 +127,7 @@ public class ProductsControllerTests
         var request = new UpdateProductRequest { Name = "Updated Keyboard", Price = 89.99m };
         _productServiceMock
             .Setup(s => s.UpdateAsync(1, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Result.Success());
 
         // Act
         var result = await _controller.Update(1, request, CancellationToken.None);
@@ -139,13 +144,15 @@ public class ProductsControllerTests
         var request = new UpdateProductRequest { Name = "Missing", Price = 10m };
         _productServiceMock
             .Setup(s => s.UpdateAsync(99, request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ReturnsAsync(Result.Failure(ProductErrors.NotFound(99)));
 
         // Act
         var result = await _controller.Update(99, request, CancellationToken.None);
 
         // Assert
-        Assert.IsType<NotFoundResult>(result);
+        var notFound = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, notFound.StatusCode);
+        AssertErrorBody(notFound.Value, "Product.NotFound");
     }
 
     [Fact]
@@ -154,7 +161,7 @@ public class ProductsControllerTests
         // Arrange
         _productServiceMock
             .Setup(s => s.DeleteAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(Result.Success());
 
         // Act
         var result = await _controller.Delete(1, CancellationToken.None);
@@ -170,12 +177,21 @@ public class ProductsControllerTests
         // Arrange
         _productServiceMock
             .Setup(s => s.DeleteAsync(99, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ReturnsAsync(Result.Failure(ProductErrors.NotFound(99)));
 
         // Act
         var result = await _controller.Delete(99, CancellationToken.None);
 
         // Assert
-        Assert.IsType<NotFoundResult>(result);
+        var notFound = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status404NotFound, notFound.StatusCode);
+        AssertErrorBody(notFound.Value, "Product.NotFound");
+    }
+
+    private static void AssertErrorBody(object? body, string expectedCode)
+    {
+        Assert.NotNull(body);
+        var code = body.GetType().GetProperty("code")?.GetValue(body) as string;
+        Assert.Equal(expectedCode, code);
     }
 }
