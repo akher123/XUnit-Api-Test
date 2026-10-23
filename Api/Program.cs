@@ -10,6 +10,8 @@ builder.Services.AddDbContext<ProductDbContext>(options =>
     options.UseInMemoryDatabase("ProductDb"));
 builder.Services.AddScoped<IProductRepository, EfProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IDiscountRepository, EfDiscountRepository>();
+builder.Services.AddScoped<IDiscountService, DiscountService>();
 
 var app = builder.Build();
 
